@@ -23,6 +23,15 @@ npm run dist
 
 **Importante:** o terminal do `npm run dev` precisa permanecer aberto enquanto o aplicativo é usado.
 
+## Novidades na v0.3.0 — transições entre cenas
+
+- Cada emenda da linha do tempo tem um marcador (**+** = corte seco, **✦** roxo = transição). Clique nele, ou selecione o clipe, e use **Transição de entrada** em Propriedades.
+- 13 efeitos: dissolver, fade para preto/branco, deslizar (4 direções), cortina (4 direções), círculo abrindo/fechando. Duração de 0,2 a 3 s, botão **Testar** (toca desde 1 s antes da emenda) e **Aplicar a todas**.
+- A transição **sobrepõe** o fim da cena anterior ao início da seguinte (o vídeo final fica mais curto, como em editores profissionais). Cada cena cede no máximo metade da própria duração; a duração é limitada automaticamente quando a cena é curta.
+- A exportação usa o filtro `xfade` (vídeo) e `acrossfade` (áudio) do FFmpeg; a prévia reproduz as mesmas fórmulas. Emendas sem transição continuam sendo cortes secos, sem recodificação extra.
+- A prévia agora mantém o próximo clipe pré-carregado, eliminando o pequeno corte preto entre clipes.
+- Palco da prévia sempre em 16:9 e régua alinhada com as faixas.
+
 ## Novidades na v0.2.2 — correção de travamentos
 
 - **Prévia otimizada (proxy):** ao importar, o FFmpeg gera uma cópia leve (540p, 30 fps, keyframe a cada 12 quadros) usada somente na pré-visualização. A exportação continua usando os arquivos originais, em qualidade total. Os proxies ficam em cache (`%APPDATA%\eden-video-editor\proxies`) e são apagados após 30 dias sem uso.

@@ -6,3 +6,15 @@
 
 .media-error{position:absolute;left:10%;right:10%;bottom:15%;background:#5b1e2ce8;color:white;padding:12px;border-radius:8px;text-align:center;font-size:13px;z-index:4}
 .optimizing{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#03060bd9;color:#cfe3f7;text-align:center;padding:16px;pointer-events:none}.optimizing strong{font-size:14px}.optimizing span{font-size:12px;color:#8fa6c0}
+
+/* v0.3 — transições: prévia em camadas e marcadores na linha do tempo */
+.preview{position:relative}.stage{position:absolute;inset:0;overflow:hidden;background:#000}.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;will-change:transform,opacity}
+.titles{z-index:5}.optimizing{z-index:6}.media-error{z-index:7}
+.ruler{gap:8px}.trackclips{display:block;position:relative;flex:0 0 auto;height:66px}
+.segment{position:absolute;top:0;height:66px;min-width:0;min-height:0}.segment .overlap{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(45deg,#ffffff38 0 4px,#ffffff12 4px 8px);border-right:1px solid #ffffff80;pointer-events:none}
+.tmark{position:absolute;top:50%;transform:translate(-50%,-50%);z-index:60;width:22px;height:22px;padding:0;border-radius:50%;background:#0f1a2b;border:1px solid #3d5a80;color:#8db2dc}.tmark:hover:not(:disabled){background:#1d3556;color:#fff}.tmark.on{background:#7a3df0;border-color:#b794ff;color:#fff}.tmark.sel{outline:2px solid #55bdff}
+.transition-panel .fields input[type=range]{padding:0;accent-color:#9b6bff}.transition-panel .two button{font-size:12px;padding:7px 8px}
+/* palco sempre 16:9, como o vídeo exportado (cortinas/deslizes/círculos dependem do enquadramento real) */
+.preview-shell{container-type:size}
+.preview{width:min(100cqw,calc(100cqh*16/9));height:auto;max-width:none;max-height:none;aspect-ratio:16/9}
+.transition-panel .two{display:grid;grid-template-columns:auto 1fr;gap:8px}.transition-panel .two button{width:100%;min-height:34px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:5px}

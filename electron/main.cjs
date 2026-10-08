@@ -54,13 +54,16 @@ function makeProxy(file){
  proxyQueue=job.catch(()=>{});
  return job;
 }
+const TRANSITIONS=new Set(['fade','fadeblack','fadewhite','slideleft','slideright','slideup','slidedown','wipeleft','wiperight','wipeup','wipedown','circleopen','circleclose']);
 function normalizeProject(input){
  if(!input||!Array.isArray(input.clips)||!input.clips.length||input.clips.length>150)throw Error('Projeto sem vídeos ou com quantidade inválida.');
  let clips=input.clips.map(c=>{
   if(typeof c.path!=='string'||!allowedFiles.has(path.resolve(c.path)))throw Error('Arquivo de vídeo não autorizado: importe-o novamente.');
   const start=Number(c.start),end=Number(c.end),speed=Number(c.speed);
   if(!Number.isFinite(start)||!Number.isFinite(end)||!Number.isFinite(speed)||start<0||end<=start||speed<0.25||speed>4)throw Error('Intervalo ou velocidade inválidos.');
-  return {path:path.resolve(c.path),start,end,speed};
+  const td=Number(c.transition?.duration);
+  const transition=c.transition&&TRANSITIONS.has(c.transition.type)&&Number.isFinite(td)&&td>=0.1?{type:c.transition.type,duration:Math.min(3,td)}:null;
+  return {path:path.resolve(c.path),start,end,speed,transition};
  });
  const texts=Array.isArray(input.texts)?input.texts.slice(0,30).map(t=>({text:String(t.text||'').slice(0,180),start:Number(t.start),end:Number(t.end),size:Math.min(100,Math.max(12,Number(t.size)||40))})).filter(t=>t.text&&Number.isFinite(t.start)&&Number.isFinite(t.end)&&t.end>t.start):[];
  const musicPath=typeof input.music==='string'?input.music:input.music?.path;
@@ -68,11 +71,41 @@ function normalizeProject(input){
  return {clips,texts,music};
 }
 function escapeDrawText(str){return str.replace(/\\/g,'\\\\').replace(/:/g,'\\:').replace(/'/g,"\\'").replace(/%/g,'\\%').replace(/,/g,'\\,').replace(/\[/g,'\\[').replace(/\]/g,'\\]').replace(/\r?\n/g,' ');}
+// Cenas ligadas por transição formam um "grupo" que é combinado com xfade (vídeo) + acrossfade (áudio); as emendas sem
+// transição continuam sendo cortes secos. Os grupos são depois concatenados sem recodificar. A transição sobrepõe o fim da
+// cena anterior ao início da seguinte, exatamente como na linha do tempo do editor.
+async function buildGroups(data,paths,durs,temp,send){
+ const groups=[];let cur=[0];
+ for(let i=1;i<paths.length;i++){if(data.clips[i].transition)cur.push(i);else{groups.push(cur);cur=[i]}}
+ groups.push(cur);
+ const finals=[];
+ for(let g=0;g<groups.length;g++){
+  const idx=groups[g];
+  if(idx.length===1){finals.push(paths[idx[0]]);continue;}
+  send(`Aplicando transições (${g+1}/${groups.length})...`);
+  const args=['-y'],parts=[];
+  idx.forEach((i,k)=>{args.push('-i',paths[i]);parts.push(`[${k}:v]fps=30,settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v${k}]`);});
+  let vLabel='[v0]',aLabel='[0:a]',acc=durs[idx[0]];
+  for(let k=1;k<idx.length;k++){
+   const i=idx[k],tr=data.clips[i].transition;
+   const d=Math.max(0.05,Math.min(tr.duration,durs[idx[k-1]]/2,durs[i]/2));
+   const offset=Math.max(0,acc-d);
+   parts.push(`${vLabel}[v${k}]xfade=transition=${tr.type}:duration=${d.toFixed(3)}:offset=${offset.toFixed(3)}[vx${k}]`);
+   parts.push(`${aLabel}[${k}:a]acrossfade=d=${d.toFixed(3)}[ax${k}]`);
+   vLabel=`[vx${k}]`;aLabel=`[ax${k}]`;acc=acc+durs[i]-d;
+  }
+  const out=path.join(temp,`group-${String(g).padStart(3,'0')}.mp4`);
+  args.push('-filter_complex',parts.join(';'),'-map',vLabel,'-map',aLabel,'-c:v','libx264','-preset','veryfast','-crf','23','-pix_fmt','yuv420p','-r','30','-c:a','aac','-ar','48000','-ac','2','-movflags','+faststart',out);
+  await execute('ffmpeg',args);
+  finals.push(out);
+ }
+ return finals;
+}
 async function render(project,output,progress){
  const data=normalizeProject(project);const temp=fs.mkdtempSync(path.join(os.tmpdir(),'eden-render-'));
  const send=s=>{progress(s);};
  try{
-  let paths=[];
+  let paths=[],durs=[];
   for(let i=0;i<data.clips.length;i++){
    const c=data.clips[i],info=await probe(c.path);
    if(c.end>info.duration+0.15)throw Error(`O corte da cena ${i+1} ultrapassa a duração do arquivo.`);
@@ -87,9 +120,10 @@ async function render(project,output,progress){
       '-t',String(finalLength),'-c:v','libx264','-preset','veryfast','-crf','23','-c:a','aac','-ar','48000','-ac','2','-movflags','+faststart',segment);
    send(`Preparando cena ${i+1}/${data.clips.length}...`);
    await execute('ffmpeg',args);
-   paths.push(segment);
+   paths.push(segment);durs.push((await probe(segment)).duration);
   }
-  const list=path.join(temp,'list.txt');fs.writeFileSync(list,paths.map(p=>`file '${p.replace(/'/g,"'\\''")}'`).join('\n'),'utf8');
+  const finals=await buildGroups(data,paths,durs,temp,send);
+  const list=path.join(temp,'list.txt');fs.writeFileSync(list,finals.map(p=>`file '${p.replace(/'/g,"'\\''")}'`).join('\n'),'utf8');
   const joined=path.join(temp,'joined.mp4');
   send('Unindo cenas...');
   await execute('ffmpeg',['-y','-f','concat','-safe','0','-i',list,'-c','copy',joined]);

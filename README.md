@@ -1,89 +1,65 @@
-# Eden Video Editor — MVP Windows
+# Eden Video Editor 0.2 — Windows
 
-Editor de vídeos desktop em React + Electron + FFmpeg. Os arquivos de vídeo não são enviados a servidores.
+Editor local de vídeos com Electron, React, Vite, TypeScript e FFmpeg.
 
 ## Requisitos
 
-- Windows 10/11 64 bits
-- Node.js LTS (inclui npm)
-- FFmpeg e FFprobe instalados e presentes no PATH
+- Windows 10/11
+- Node.js instalado
+- FFmpeg e FFprobe acessíveis no PATH (`ffmpeg -version` e `ffprobe -version`)
 
-### Instalação do FFmpeg
-
-No PowerShell:
+## Instalação
 
 ```powershell
-winget install --id Gyan.FFmpeg --exact
-```
-
-Feche e reabra o PowerShell e verifique:
-
-```powershell
-ffmpeg -version
-ffprobe -version
-```
-
-Se o comando não for reconhecido, configure o diretório `bin` do FFmpeg na variável PATH do Windows e abra novo terminal.
-
-## Rodar em desenvolvimento
-
-```powershell
-cd C:\Projetos\eden-editor
 npm install
 npm run dev
 ```
 
-## Abrir versão compilada localmente
-
-```powershell
-npm run start
-```
-
-## Gerar instalador Windows
+Para gerar o instalador:
 
 ```powershell
 npm run dist
 ```
 
-O instalador ficará em `release/`. **Importante:** nesta versão, o FFmpeg não é embutido no instalador; precisa ser instalado na máquina de destino.
+**Importante:** o terminal do `npm run dev` precisa permanecer aberto enquanto o aplicativo é usado.
 
-## Recursos disponíveis
+## Novidades na v0.2.2 — correção de travamentos
 
-- Importação de vários vídeos, com duração obtida via FFprobe
-- Reordenar cenas usando setas na timeline
-- Cortar por segundo inicial/final sem modificar originais
-- Velocidades 0,25x a 4x, incluindo áudio dos clipes
-- Prévia da montagem (cena atual) e navegação na timeline
-- Títulos na parte inferior com intervalos definidos em segundos
-- Música de fundo com mixagem ao áudio original
-- Salvar e abrir projeto JSON editável
-- Exportar MP4 1280×720, H.264 + AAC
+- **Prévia otimizada (proxy):** ao importar, o FFmpeg gera uma cópia leve (540p, 30 fps, keyframe a cada 12 quadros) usada somente na pré-visualização. A exportação continua usando os arquivos originais, em qualidade total. Os proxies ficam em cache (`%APPDATA%\eden-video-editor\proxies`) e são apagados após 30 dias sem uso.
+- Relógio de reprodução por `requestAnimationFrame`: o corte entre clipes agora é detectado a cada quadro (antes, até 250 ms do trecho seguinte apareciam) e a interface atualiza ~20×/s em vez de 4×/s.
+- Servidor de mídia local com leitura em blocos de 1 MB e sem `no-store`.
+- Processos do FFmpeg são encerrados ao fechar o aplicativo.
+- O botão Reproduzir fica desativado enquanto a prévia está sendo otimizada (indicado sobre o vídeo).
 
-## Limitações da versão 0.1
+## Novidades na v0.2
 
-- Exportação padronizada em 720p/30fps
-- A prévia não reproduz a música adicional; ela entra no MP4 exportado
-- Prévia de títulos aproximada (renderização final usa FFmpeg)
-- A linha do tempo usa botões de ordenação, não arrastar-e-soltar
-- Sem transições, formas de onda, legendas automáticas ou aceleração de GPU
-- Cada título usa Arial centralizada na parte inferior; tamanhos e intervalos editáveis
-- Recomendado testar primeiro com arquivos MP4 H.264/AAC, já que codecs e contêineres variam
-- Arquivos removidos ou movidos invalidam caminhos do projeto salvo
-- O instalador é sem assinatura de código, portanto o Windows SmartScreen pode exibir aviso
+- Pré-visualização confinada ao painel, sem invadir a timeline
+- Ordenação de clipes arrastando e soltando na faixa de vídeo
+- Escala temporal proporcional à duração, com zoom
+- Reprodução sequencial de clipes e navegação pela régua
+- Dividir clipe no cursor (corte não destrutivo)
+- Velocidade numérica personalizada de 0,25× a 4×
+- Correção da leitura da música durante exportação e reabertura dos projetos
+- Compatibilidade com projetos `.eden.json` da v0.1
 
-## Arquitetura
+## Uso
 
-```text
-src/           UI React + timeline e preview
-  main.tsx
-  style.css
-electron/
-  main.cjs       IPC, seletor de arquivos, ffprobe, pipeline de render
-  preload.cjs    API segura e mínima disponível na interface
-```
+1. Importe seus vídeos.
+2. Clique no botão Reproduzir. Clique na régua para posicionar o cursor.
+3. Arraste clipes sobre outros para reorganizar a sequência.
+4. Posicione o cursor no interior de um clipe e use **Dividir**.
+5. Selecione um clipe para ajustar seu corte e velocidade.
+6. Adicione música e textos e exporte para MP4.
 
-O renderer não possui Node.js habilitado. O processo principal somente acessa mídias importadas explicitamente, e o esquema `media://` serve os arquivos locais autorizados.
+## Limitações atuais
 
-## Direitos de distribuição
+- A timeline ainda não oferece arraste de alças de início/fim (use o painel Propriedades).
+- Transições entre cenas, miniaturas geradas automaticamente, múltiplas faixas de áudio e legendas automáticas ainda não foram implementadas.
+- Exportação em 1280×720, 30 fps; FFmpeg instalado separadamente.
+- Prévia de velocidade e renderização devem ser testadas no computador de destino; não foi possível executar um teste completo no Windows neste ambiente.
 
-Verifique as licenças do Electron, bibliotecas e da versão de FFmpeg distribuída/instalada, especialmente se comercializar o aplicativo ou incluir binários do FFmpeg no instalador.
+## Solução de problemas
+
+Se `ffprobe` não for reconhecido, feche o terminal, abra outro e execute `where.exe ffprobe`. Em instalações Winget, o terminal antigo pode não receber a atualização de PATH.
+
+O botão **Exportar MP4** usa FFmpeg e gera o vídeo selecionado pelo diálogo do Windows.

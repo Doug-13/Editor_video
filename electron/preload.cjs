@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('editor', {
   saveProject: project => ipcRenderer.invoke('save-project', project),
   openProject: () => ipcRenderer.invoke('open-project'),
   exportVideo: project => ipcRenderer.invoke('export-video', project),
+  makeProxy: file => ipcRenderer.invoke('make-proxy', file),
   onProgress: callback => {
     const listener = (_event, message) => callback(message);
     ipcRenderer.on('export-progress', listener);

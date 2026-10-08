@@ -1,0 +1,37 @@
+﻿# Dependencias
+node_modules/
+.pnpm-store/
+
+# Compilacao
+dist/
+dist-electron/
+release/
+out/
+build/
+
+# Arquivos locais
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Midias e projetos locais
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.mp3
+*.wav
+*.webm
+
+# Projetos editaveis
+*.eden

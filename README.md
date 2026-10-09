@@ -23,6 +23,16 @@ npm run dist
 
 **Importante:** o terminal do `npm run dev` precisa permanecer aberto enquanto o aplicativo é usado.
 
+## Novidades na v0.4.0 — várias faixas de áudio e mixagem
+
+- **Várias faixas de áudio:** **Adicionar áudio** aceita vários arquivos de uma vez; cada um vira uma faixa independente na linha do tempo (fundo, narração, efeitos…). Arraste o título da faixa para posicioná-la no tempo, ou use os campos no painel.
+- **Som dos vídeos:** faixa própria (“Som dos vídeos”) com volume, mudo e curva, para baixar o som original e deixar o fundo e a narração em destaque.
+- **Volume de 0 a 200 %** por faixa (inclui reforço) e botão de mudo na lateral de cada faixa.
+- **Curva de volume ao longo do tempo:** dê duplo clique na faixa para criar um ponto, arraste para subir/descer, duplo clique (ou botão direito) no ponto para remover. Atalhos **Fade in / Fade out** com duração configurável e **Limpar curva**.
+- Por faixa: **início na linha do tempo**, **começar a tocar o arquivo em…** (pular o começo) e **repetir até o fim do vídeo**.
+- A prévia toca todas as faixas juntas (Web Audio); a exportação mixa com FFmpeg (`volume` por curva, `adelay`, `amix`) e aplica um limitador contra distorção.
+- Projetos antigos (uma música em loop) são convertidos automaticamente para uma faixa em loop com os mesmos volumes de antes (original 85 %, música 22 %).
+
 ## Novidades na v0.3.0 — transições entre cenas
 
 - Cada emenda da linha do tempo tem um marcador (**+** = corte seco, **✦** roxo = transição). Clique nele, ou selecione o clipe, e use **Transição de entrada** em Propriedades.

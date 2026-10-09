@@ -6,7 +6,7 @@ const {spawn}=require('node:child_process');
 const {Readable}=require('node:stream');
 const crypto=require('node:crypto');
 
-protocol.registerSchemesAsPrivileged([{scheme:'media',privileges:{standard:true,secure:true,stream:true,supportFetchAPI:true}}]);
+protocol.registerSchemesAsPrivileged([{scheme:'media',privileges:{standard:true,secure:true,stream:true,supportFetchAPI:true,corsEnabled:true}}]);
 const allowedFiles=new Set();
 let win;
 function allowFile(p){const normalized=path.resolve(p);allowedFiles.add(normalized);return {path:normalized,url:`media://local/${encodeURIComponent(normalized)}`};}
@@ -54,6 +54,13 @@ function makeProxy(file){
  proxyQueue=job.catch(()=>{});
  return job;
 }
+const clampNum=(x,d,lo,hi)=>{x=Number(x);return Number.isFinite(x)?Math.min(hi,Math.max(lo,x)):d};
+// curva de volume: pontos {t (s, relativo ao início da faixa), v (0..1)} ordenados e sem tempos repetidos
+function cleanEnv(env){
+ if(!Array.isArray(env))return [];
+ const pts=env.slice(0,64).map(p=>({t:Number(p?.t),v:Number(p?.v)})).filter(p=>Number.isFinite(p.t)&&Number.isFinite(p.v)&&p.t>=0&&p.t<=36000).map(p=>({t:p.t,v:Math.min(1,Math.max(0,p.v))})).sort((a,b)=>a.t-b.t);
+ return pts.filter((p,i)=>i===0||p.t-pts[i-1].t>=0.001);
+}
 const TRANSITIONS=new Set(['fade','fadeblack','fadewhite','slideleft','slideright','slideup','slidedown','wipeleft','wiperight','wipeup','wipedown','circleopen','circleclose']);
 function normalizeProject(input){
  if(!input||!Array.isArray(input.clips)||!input.clips.length||input.clips.length>150)throw Error('Projeto sem vídeos ou com quantidade inválida.');
@@ -66,14 +73,67 @@ function normalizeProject(input){
   return {path:path.resolve(c.path),start,end,speed,transition};
  });
  const texts=Array.isArray(input.texts)?input.texts.slice(0,30).map(t=>({text:String(t.text||'').slice(0,180),start:Number(t.start),end:Number(t.end),size:Math.min(100,Math.max(12,Number(t.size)||40))})).filter(t=>t.text&&Number.isFinite(t.start)&&Number.isFinite(t.end)&&t.end>t.start):[];
- const musicPath=typeof input.music==='string'?input.music:input.music?.path;
- const music=typeof musicPath==='string'&&allowedFiles.has(path.resolve(musicPath))?path.resolve(musicPath):null;
- return {clips,texts,music};
+ const audio=[];
+ for(const l of (Array.isArray(input.audio)?input.audio.slice(0,16):[])){
+  const ap=typeof l?.path==='string'?path.resolve(l.path):null;
+  if(!ap||!allowedFiles.has(ap))continue;
+  audio.push({path:ap,start:clampNum(l.start,0,0,36000),offset:clampNum(l.offset,0,0,36000),loop:!!l.loop,volume:clampNum(l.volume,1,0,2),muted:!!l.muted,env:cleanEnv(l.env)});
+ }
+ const va=input.videoAudio||{};
+ const videoAudio={volume:clampNum(va.volume,1,0,2),muted:!!va.muted,env:cleanEnv(va.env)};
+ return {clips,texts,audio,videoAudio};
 }
 function escapeDrawText(str){return str.replace(/\\/g,'\\\\').replace(/:/g,'\\:').replace(/'/g,"\\'").replace(/%/g,'\\%').replace(/,/g,'\\,').replace(/\[/g,'\\[').replace(/\]/g,'\\]').replace(/\r?\n/g,' ');}
 // Cenas ligadas por transição formam um "grupo" que é combinado com xfade (vídeo) + acrossfade (áudio); as emendas sem
 // transição continuam sendo cortes secos. Os grupos são depois concatenados sem recodificar. A transição sobrepõe o fim da
 // cena anterior ao início da seguinte, exatamente como na linha do tempo do editor.
+// ---- Mixagem de áudio ----
+// Volume = ganho fixo da faixa × curva (pontos em segundos relativos ao início da faixa). A expressão do FFmpeg é linear por
+// partes e avaliada por quadro, em tempo absoluto da linha do tempo (a faixa é atrasada com adelay antes do volume).
+function volumeExpr(gain,env,shift){
+ const pts=env.map(p=>({t:p.t+shift,v:p.v}));
+ if(!pts.length)return gain.toFixed(4);
+ let e=pts[pts.length-1].v.toFixed(4);
+ for(let i=pts.length-2;i>=0;i--){const a=pts[i],b=pts[i+1];e=`if(lt(t,${b.t.toFixed(3)}),${a.v.toFixed(4)}+(${(b.v-a.v).toFixed(4)})*(t-${a.t.toFixed(3)})/${(b.t-a.t).toFixed(3)},${e})`;}
+ return `${gain.toFixed(4)}*if(lt(t,${pts[0].t.toFixed(3)}),${pts[0].v.toFixed(4)},${e})`;
+}
+let amixHasNormalize=null;
+async function amixSupportsNormalize(){
+ if(amixHasNormalize!==null)return amixHasNormalize;
+ amixHasNormalize=await new Promise(resolve=>{let out='';const p=spawn(ffExe('ffmpeg'),['-hide_banner','-h','filter=amix'],{windowsHide:true});p.stdout.on('data',d=>out+=d);p.stderr.on('data',d=>out+=d);p.on('error',()=>resolve(false));p.on('close',()=>resolve(/\bnormalize\b/.test(out)));});
+ return amixHasNormalize;
+}
+async function buildAudioMix(data,temp,send){
+ const va=data.videoAudio,lanes=data.audio.filter(l=>!l.muted&&l.volume>0);
+ const neutral=!lanes.length&&!va.muted&&va.volume===1&&!va.env.length;
+ if(neutral)return {inputs:[],graph:null,label:null};
+ const fmt='aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo';
+ const inputs=[],parts=[],labels=[];
+ const vg=va.muted?0:va.volume;
+ parts.push(`[0:a:0]${fmt},volume='${volumeExpr(vg,va.env,0)}':eval=frame:precision=float[v0]`);labels.push('[v0]');
+ if(lanes.length)send('Mixando as faixas de áudio...');
+ for(let i=0;i<lanes.length;i++){
+  const l=lanes[i];let src=l.path;
+  const info=await probe(l.path);const span=Math.max(0.05,info.duration-l.offset);
+  if(l.loop&&l.offset>0.01){ // -stream_loop ignora -ss: extrai o trecho e repete o trecho
+   src=path.join(temp,`loop-${i}.wav`);
+   await execute('ffmpeg',['-y','-ss',String(l.offset),'-i',l.path,'-vn','-c:a','pcm_s16le','-ar','48000','-ac','2',src]);
+   inputs.push(['-stream_loop','-1','-i',src]);
+  }else if(l.loop)inputs.push(['-stream_loop','-1','-i',src]);
+  else inputs.push(l.offset>0.01?['-ss',String(l.offset),'-i',src]:['-i',src]);
+  const delay=Math.round(l.start*1000);
+  const chain=[fmt];if(delay>0)chain.push(`adelay=${delay}|${delay}`);
+  chain.push(`volume='${volumeExpr(l.volume,l.env,l.start)}':eval=frame:precision=float`);
+  const label=`[l${i}]`;parts.push(`[${i+1}:a:0]${chain.join(',')}${label}`);labels.push(label);
+ }
+ const n=labels.length;
+ if(n>1){
+  const norm=await amixSupportsNormalize();
+  parts.push(`${labels.join('')}amix=inputs=${n}:duration=first:dropout_transition=0${norm?':normalize=0':''}[mixed]`);
+  parts.push(norm?'[mixed]alimiter=limit=0.97[a]':`[mixed]volume=${n},alimiter=limit=0.97[a]`);
+ }else parts.push(`${labels[0]}alimiter=limit=0.97[a]`);
+ return {inputs,graph:parts.join(';'),label:'[a]'};
+}
 async function buildGroups(data,paths,durs,temp,send){
  const groups=[];let cur=[0];
  for(let i=1;i<paths.length;i++){if(data.clips[i].transition)cur.push(i);else{groups.push(cur);cur=[i]}}
@@ -132,9 +192,11 @@ async function render(project,output,progress){
   for(const t of data.texts){
    filters.push(`drawtext=fontfile='${font}':text='${escapeDrawText(t.text)}':fontsize=${t.size}:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h*0.80:enable='between(t,${t.start},${t.end})'`);
   }
-  const args=['-y','-i',joined];if(data.music)args.push('-stream_loop','-1','-i',data.music);
+  const args=['-y','-i',joined];
   if(filters.length)args.push('-vf',filters.join(','));
-  if(data.music){args.push('-filter_complex','[0:a:0]volume=0.85[original];[1:a:0]volume=0.22[music];[original][music]amix=inputs=2:duration=first:dropout_transition=0[a]','-map','0:v:0','-map','[a]');}
+  const mix=await buildAudioMix(data,temp,send);
+  for(const inp of mix.inputs)args.push(...inp);
+  if(mix.graph)args.push('-filter_complex',mix.graph,'-map','0:v:0','-map',mix.label);
   else args.push('-map','0:v:0','-map','0:a:0');
   args.push('-c:v',filters.length?'libx264':'copy');
   if(filters.length)args.push('-preset','veryfast','-crf','23','-pix_fmt','yuv420p');
@@ -178,9 +240,14 @@ app.whenReady().then(()=>{
 app.on('before-quit',()=>{for(const p of procs){try{p.kill()}catch{}}});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
 ipcMain.handle('choose-videos',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile','multiSelections'],filters:[{name:'Vídeos',extensions:['mp4','mov','mkv','webm','avi','m4v']}]});if(r.canceled)return [];const files=[];for(const p of r.filePaths){try{const info=await probe(p);if(info.duration>0)files.push({...allowFile(p),duration:info.duration,name:path.basename(p)})}catch(e){dialog.showErrorBox('Erro ao importar',`${p}\n${e.message}`)}}return files;});
-ipcMain.handle('choose-audio',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Áudios',extensions:['mp3','wav','m4a','aac','flac','ogg']}]});return r.canceled?null:{...allowFile(r.filePaths[0]),name:path.basename(r.filePaths[0])};});
+ipcMain.handle('choose-audio',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile','multiSelections'],filters:[{name:'Áudios',extensions:['mp3','wav','m4a','aac','flac','ogg','opus']}]});if(r.canceled)return [];const out=[];for(const f of r.filePaths.slice(0,16)){const info=await probe(f);out.push({...allowFile(f),name:path.basename(f),duration:info.duration});}return out;});
 ipcMain.handle('save-project',async(_event,project)=>{const r=await dialog.showSaveDialog(win,{defaultPath:'Meu projeto.eden.json',filters:[{name:'Projeto Eden',extensions:['json']}]});if(r.canceled)return null;fs.writeFileSync(r.filePath,JSON.stringify(project,null,2),'utf8');return r.filePath;});
-ipcMain.handle('open-project',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Projeto Eden',extensions:['json']}]});if(r.canceled)return null;const j=JSON.parse(fs.readFileSync(r.filePaths[0],'utf8'));if(!Array.isArray(j.clips)||j.clips.length>150)throw Error('Arquivo de projeto inválido.');const clips=[];for(const c of j.clips){if(!fs.existsSync(c.path))throw Error('Vídeo não encontrado: '+c.path);const info=await probe(c.path);clips.push({...c,...allowFile(c.path),duration:info.duration,name:path.basename(c.path)});}let music=null;const savedMusic=typeof j.music==='string'?j.music:j.music?.path; if(savedMusic&&fs.existsSync(savedMusic))music={...allowFile(savedMusic),name:path.basename(savedMusic)};return {clips,texts:Array.isArray(j.texts)?j.texts:[],music};});
+ipcMain.handle('open-project',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Projeto Eden',extensions:['json']}]});if(r.canceled)return null;const j=JSON.parse(fs.readFileSync(r.filePaths[0],'utf8'));if(!Array.isArray(j.clips)||j.clips.length>150)throw Error('Arquivo de projeto inválido.');const clips=[];for(const c of j.clips){if(!fs.existsSync(c.path))throw Error('Vídeo não encontrado: '+c.path);const info=await probe(c.path);clips.push({...c,...allowFile(c.path),duration:info.duration,name:path.basename(c.path)});}const audio=[];
+ for(const l of (Array.isArray(j.audio)?j.audio.slice(0,16):[])){if(typeof l?.path!=='string'||!fs.existsSync(l.path))continue;const info=await probe(l.path);audio.push({...l,...allowFile(l.path),name:l.name||path.basename(l.path),duration:info.duration,env:cleanEnv(l.env),volume:clampNum(l.volume,1,0,2),start:clampNum(l.start,0,0,36000),offset:clampNum(l.offset,0,0,36000),loop:!!l.loop,muted:!!l.muted});}
+ let videoAudio=j.videoAudio?{volume:clampNum(j.videoAudio.volume,1,0,2),muted:!!j.videoAudio.muted,env:cleanEnv(j.videoAudio.env)}:{volume:1,muted:false,env:[]};
+ const savedMusic=typeof j.music==='string'?j.music:j.music?.path; // projetos antigos (v0.2): uma música em loop, original 85% e música 22%
+ if(!j.audio&&savedMusic&&fs.existsSync(savedMusic)){const info=await probe(savedMusic);audio.push({...allowFile(savedMusic),name:path.basename(savedMusic),duration:info.duration,start:0,offset:0,loop:true,volume:0.22,muted:false,env:[]});videoAudio={volume:0.85,muted:false,env:[]};}
+ return {clips,texts:Array.isArray(j.texts)?j.texts:[],audio,videoAudio};});
 ipcMain.handle('make-proxy',async(_event,file)=>{if(typeof file!=='string'||!allowedFiles.has(path.resolve(file)))throw Error('Arquivo de vídeo não autorizado.');return await makeProxy(path.resolve(file));});
 let busy=false;
 ipcMain.handle('export-video',async(event,project)=>{if(busy)throw Error('Já existe uma exportação em andamento.');const r=await dialog.showSaveDialog(win,{defaultPath:'video-final.mp4',filters:[{name:'Vídeo MP4',extensions:['mp4']}]});if(r.canceled)return null;busy=true;try{return await render(project,r.filePath,message=>event.sender.send('export-progress',message));}finally{busy=false;}});

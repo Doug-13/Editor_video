@@ -23,6 +23,31 @@ npm run dist
 
 **Importante:** o terminal do `npm run dev` precisa permanecer aberto enquanto o aplicativo é usado.
 
+## v0.5.2 — faixas de áudio compartilhando linhas
+
+- **Faixas de áudio agrupadas automaticamente:** as que não se sobrepõem no tempo ficam na mesma linha (“ÁUDIO 1”, “ÁUDIO 2”…); uma nova linha só aparece quando há conflito. Encostar (uma termina onde a outra começa) não conta como conflito. Ao arrastar ou mudar o início de uma faixa, as linhas se reorganizam sozinhas.
+- Cada barra tem seu próprio botão de silenciar (aparece quando a barra é larga o bastante; use zoom ou o painel Propriedades nas barras estreitas).
+- **A linha de reprodução agora atravessa todas as faixas**, da régua até a última (antes parava na régua).
+
+## v0.5.1 — posição e mudo no painel do clipe
+
+- **Posição na sequência:** caixa no painel Propriedades. Digite o número e tecle Enter para mover o vídeo; números acima do total vão para o fim.
+- **Silenciar o som deste vídeo:** deixa mudo apenas aquele clipe (na prévia e na exportação), sem alterar a duração nem as transições. Aparece um ícone no trecho da linha do tempo e a indicação “mudo” na barra lateral.
+
+## Novidades na v0.5.0 — biblioteca numerada e tela inteira
+
+- **Importar não insere mais na sequência.** Os vídeos ficam na barra lateral, em **“Biblioteca • fora da sequência”**, cada um com um campo de posição já sugerindo o próximo número (se a sequência tem 1–6, aparece 7). Digite a posição desejada e tecle **Enter** (ou clique em **+**) para inseri-lo; os demais se reorganizam.
+- Os vídeos já na sequência também têm o campo numérico: digite outro número e tecle Enter para movê-lo. Esc cancela.
+- **Inserir todos** coloca tudo da biblioteca no fim da sequência, na ordem da lista (útil na primeira importação). O botão de desfazer ao lado de cada vídeo o **tira da sequência** sem apagá-lo.
+- A biblioteca é salva junto com o projeto.
+- **Tela inteira:** botão na barra de reprodução, tecla **F** ou duplo clique na prévia. Em tela inteira há play/pausa, barra de busca, tempo e sair; os controles somem sozinhos após alguns segundos parado. **Espaço** toca/pausa em qualquer lugar do app (exceto enquanto você digita em um campo); **Esc** sai.
+- A prévia é sempre desenhada em 16:9 e os títulos escalam junto com a imagem.
+
+## v0.4.1 — correção
+
+- Corrigido o erro ao exportar (`Option vf ... cannot be applied to input url ...loop-0.wav`): a exportação falhava quando havia **texto** junto com faixas de áudio adicionais. Agora as opções do FFmpeg são montadas na ordem correta.
+- Mensagens de erro da exportação mostram apenas as últimas linhas relevantes, sem o banner de configuração do FFmpeg.
+
 ## Novidades na v0.4.0 — várias faixas de áudio e mixagem
 
 - **Várias faixas de áudio:** **Adicionar áudio** aceita vários arquivos de uma vez; cada um vira uma faixa independente na linha do tempo (fundo, narração, efeitos…). Arraste o título da faixa para posicioná-la no tempo, ou use os campos no painel.

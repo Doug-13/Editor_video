@@ -31,3 +31,27 @@
 .audio-panel label.check{display:flex;align-items:center;gap:8px;color:#c9d6e6}.audio-panel label.check input{width:auto}.audio-panel label em{font-style:normal;color:#7f93ab}
 .audio-panel input[type=range]{padding:0;accent-color:#4fd1b0}.audio-panel .two button{white-space:nowrap}.audio-panel>button{width:100%}
 .audio-panel .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.audio-panel .two button,.audio-panel>button{width:100%;min-height:34px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+
+/* v0.5 — biblioteca numerada e tela inteira */
+.seq{width:36px;flex:none;text-align:center;font-weight:700;font-size:13px;padding:5px 2px;border-radius:7px;background:#0d1522;border:1px solid #33465f;color:#e8f0fb}.seq:focus{outline:2px solid #4aa8ff;border-color:#4aa8ff}.seq.ghost{border-style:dashed;color:#8aa0ba}
+.asset.seqitem,.asset.pool{display:flex;align-items:center;gap:8px}.asset.seqitem>span,.asset.pool>span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.asset.pool{border:1px dashed #33465f;background:#101a28}.asset.pool>span{color:#c3d1e4}
+.pool-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:12px 2px 4px;font-size:11px;font-weight:700;color:#8aa0ba;text-transform:uppercase;letter-spacing:.04em}.pool-head:first-child{margin-top:2px}.pool-head button{font-size:11px;padding:3px 8px;border-radius:6px;background:#1b3a5e;border:1px solid #2f5f95;color:#dcebfa;text-transform:none;letter-spacing:0;font-weight:600}.pool-head button:hover{background:#255080}
+.transport .fsbtn{margin-left:10px}
+.preview{container-type:size}
+.stage{position:absolute;inset:auto;width:min(100cqw,calc(100cqh*16/9));height:auto;aspect-ratio:16/9;container-type:size}  /* centralizado pelo flex do .preview */
+.titles{position:absolute;inset:0;z-index:5}
+.preview.full{background:#000;cursor:default}.preview.full.idle{cursor:none}
+.fs-controls{position:absolute;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;gap:14px;padding:26px 28px 22px;background:linear-gradient(transparent,#000d);opacity:0;pointer-events:none;transition:opacity .25s}.fs-controls.show{opacity:1;pointer-events:auto}
+.fs-controls button{width:42px;height:42px;padding:0;border-radius:50%;background:#ffffff22;border:1px solid #ffffff44;color:#fff;display:inline-flex;align-items:center;justify-content:center}.fs-controls button:hover:not(:disabled){background:#ffffff44}
+.fs-controls input[type=range]{flex:1;accent-color:#4aa8ff;height:6px}.fs-time{color:#fff;font-variant-numeric:tabular-nums;font-size:14px;min-width:46px;text-align:center}
+
+/* v0.5.1 — posição e mudo no painel do clipe */
+.seq.wide{width:100%;text-align:left;font-weight:500;font-size:14px;padding:10px 12px;border-style:solid;color:#e8f0fb}
+.fields label.check{display:flex;align-items:center;gap:8px;color:#c9d6e6;cursor:pointer}.fields label.check input{width:auto}
+.segment .segmute{position:absolute;right:6px;top:6px;color:#ffb4a8;opacity:.95}
+
+/* v0.5.2 — faixas de áudio compartilhando linhas e linha de reprodução até a última faixa */
+.timeline-body{position:relative}
+.playline{position:absolute;top:0;bottom:0;width:0;border-left:2px solid #55b8ff;z-index:70;pointer-events:none;box-shadow:0 0 6px #55b8ff80}
+.aname.grab{display:flex;align-items:center;gap:4px}.aname.grab>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.barmute{flex:none;width:14px;height:14px;padding:0;border:0;border-radius:3px;background:transparent;color:#cfe6f5;display:inline-flex;align-items:center;justify-content:center}.barmute:hover{background:#ffffff30}

@@ -1,4 +1,4 @@
-# Eden Video Editor 0.2 — Windows
+# Eden Video Editor 0.9 — Windows
 
 Editor local de vídeos com Electron, React, Vite, TypeScript e FFmpeg.
 
@@ -22,6 +22,56 @@ npm run dist
 ```
 
 **Importante:** o terminal do `npm run dev` precisa permanecer aberto enquanto o aplicativo é usado.
+
+## Novidades na v0.9.0 — fontes, cores e posição dos textos; textos não se sobrepõem mais
+
+Em cada texto, abra **“Fonte, cor e posição”**:
+
+- **6 estilos prontos** (Clássico, Legenda, Cinema, Impacto, Destaque, Neon) e **16 fontes do Windows** (Arial, Arial Black, Segoe UI, Calibri, Verdana, Tahoma, Trebuchet MS, Franklin Gothic, Impact, Georgia, Times New Roman, Palatino, Courier New, Consolas, Comic Sans MS, Segoe Script).
+- **Negrito** e **itálico** (desativados quando a fonte não tem essa variação, para a prévia ficar igual ao vídeo exportado), **tamanho** de 12 a 200.
+- **Cor da letra** e **opacidade**, **contorno** (0 a 10 px) com cor própria, **sombra** e **tarja** atrás do texto (cor e opacidade).
+- **Posição livre:** alinhar à esquerda/centro/direita, atalhos Topo/Meio/Base, controles horizontal e vertical — ou **arraste o texto direto na prévia** (gruda no centro).
+- **Aplicar este estilo a todos os textos** copia fonte, tamanho e cores (não a posição).
+- **Correção — textos sobrepostos:** dois textos que aparecem ao mesmo tempo na mesma posição eram desenhados um em cima do outro na exportação. Agora são **empilhados** automaticamente (um acima do outro), da mesma forma na prévia e no MP4.
+- **Prévia = exportação:** o tamanho da letra na prévia agora corresponde ao vídeo exportado (antes a prévia mostrava a letra cerca de 1,5× maior). Textos com aspas, dois-pontos, `%`, vírgulas e acentos são exportados sem problemas de escape.
+- Projetos antigos abrem com o mesmo visual de antes (Arial, branco, contorno preto). Fontes instaladas só para o usuário também são encontradas; se uma fonte faltar no computador, a exportação usa Arial.
+
+## Novidades na v0.8.0 — cor e estilos; reforço da inversão
+
+- **Cor e estilo** (painel do clipe, por vídeo): **Brilho, Contraste, Saturação, Temperatura (frio ↔ quente) e Desbotado**, mais **10 estilos prontos** com um clique: Original, Vívido, Cinematográfico, Quente, Frio, Preto e branco, Vintage, Dramático, Suave (matte) e Noturno. **Restaurar cor** volta ao original e **Aplicar a todos** copia a cor para todos os vídeos. Um ícone de paleta marca na linha do tempo os clipes com cor.
+- A prévia e a exportação usam a mesma conta (erro médio de 1 a 2,5 em 255 nos 13 casos testados), e a cor não pesa na reprodução. A cor é aplicada ao quadro já enquadrado, antes do zoom, então também vale para o fundo desfocado.
+- As barras pretas de vídeos “ajustados” agora fazem parte do quadro na prévia (como na exportação): recebem a cor e deslizam nas transições.
+- **Inversão reforçada:** a cópia invertida da prévia agora é recodificada em um fluxo único (idêntico em estrutura a uma cópia leve normal), o cache foi renovado (arquivos antigos não são reaproveitados), os arquivos gerados pelo app nunca recebem “403” do servidor de mídia local (arquivos de fora da pasta continuam negados), o app confere o acesso ao arquivo invertido e informa o código exato se algo falhar, e, se o vídeo invertido falhar ao tocar, ele é reconstruído automaticamente.
+
+## Novidades na v0.7.0 — vídeos verticais (9:16) em projetos 16:9
+
+Painel do clipe → **Enquadramento** (por clipe):
+
+- **Ajustar (barras pretas):** como antes.
+- **Fundo desfocado (sem cortar):** o vídeo inteiro no centro e, atrás, o próprio vídeo ampliado, desfocado e escurecido. É o padrão para vídeos **verticais** recém-importados.
+- **Preencher o quadro (recorta):** o vídeo ocupa toda a tela e você escolhe a parte mantida (vertical e/ou horizontal). Para vídeos verticais há **“Varrer de cima para baixo”**, que desliza a janela de recorte ao longo do clipe.
+- **Aplicar este enquadramento a todos** copia o modo (e a posição) para todos os vídeos da sequência.
+- A orientação é detectada na importação, inclusive em vídeos de celular gravados “deitados” com marca de rotação. O zoom do clipe continua funcionando por cima do enquadramento.
+- Exportação e prévia usam a mesma geometria (fundo desfocado: erro médio ≈ 7 em 255; demais modos ≈ 2–3).
+- Ao dividir um clipe em varredura, cada metade continua de onde a outra parou.
+- Corrigido: os botões “Aproximar/Afastar devagar” estavam espremidos no painel.
+
+## v0.6.1 — correção: “Falha na leitura do arquivo (código 3)” em sequências longas
+
+- **Causa:** o Web Audio (usado desde a v0.4 para volume acima de 100% e curvas) mantém vivo todo `<video>` ligado a ele, e a prévia criava um `<video>` novo a cada clipe. Os decodificadores se acumulavam e, depois de vários clipes, a reprodução falhava com erro de decodificação. Medido: 14 clipes tocados → 12 elementos retidos mesmo após forçar o coletor de lixo.
+- **Correção:** a prévia agora usa um conjunto **fixo de 6 elementos reutilizáveis**; ao trocar de clipe só a fonte muda. O número de decodificadores deixa de crescer com o tamanho do projeto.
+- A prévia usa **decodificação por software** (as cópias leves são 540p). Para reativar o hardware: defina a variável de ambiente `EDEN_HW_DECODE=1`.
+- **Recuperação automática:** se um vídeo falhar, o app recarrega o elemento sem parar a reprodução; na segunda falha usa o arquivo original; só então mostra o erro (agora com o nome do clipe). Os detalhes da falha vão para o console (View → Toggle Developer Tools).
+
+## Novidades na v0.6.0
+
+- **Vídeo ao contrário** (por clipe): marque “Reproduzir ao contrário” no painel do clipe; o som também é invertido. A prévia usa uma cópia leve invertida gerada em segundo plano (só na primeira vez por trecho; o Play fica bloqueado enquanto isso). A exportação inverte em qualidade total, em pedaços, para não consumir memória demais.
+- **Zoom por clipe:** zoom de 100% a 400%, posição horizontal/vertical, zoom animado do início ao fim do vídeo e atalhos “Aproximar devagar” / “Afastar devagar”. Vale só para o clipe selecionado.
+- **Volume por vídeo** (0–200%) e **Duplicar vídeo** (a cópia leva os textos e as configurações).
+- **Áudio:** **arraste as bordas** da barra para cortar o início ou o fim (a curva de volume acompanha); a borda “gruda” na linha de reprodução; **Duplicar** e **Dividir no cursor** no painel da faixa; campo “Parar de tocar o arquivo em”.
+- **Texto vinculado ao vídeo:** o texto inserido fica preso ao vídeo sob a linha de reprodução e **acompanha o vídeo** quando ele muda de posição. Ao dividir um vídeo, o texto vai para a metade onde está (se atravessa o corte, continua nas duas). Se o vídeo sai da sequência, o texto fica oculto; se o vídeo é removido, o texto some. É possível **Desvincular** (tempos fixos) e **Vincular** de novo.
+- **Desfazer / Refazer** (botões no topo): guarda até 100 passos; gestos contínuos (arrastar um controle) valem um passo só.
+- **Atalhos:** Espaço tocar/pausar • F tela inteira • S dividir (vídeo, ou faixa de áudio se ela estiver selecionada) • Delete remover • Ctrl+D duplicar • Ctrl+Z desfazer • Ctrl+Y ou Ctrl+Shift+Z refazer • ← → um quadro (com Shift, 1 s) • Home / End. Os atalhos não funcionam enquanto você digita num campo.
 
 ## v0.5.2 — faixas de áudio compartilhando linhas
 

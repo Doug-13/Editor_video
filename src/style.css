@@ -48,10 +48,59 @@
 /* v0.5.1 — posição e mudo no painel do clipe */
 .seq.wide{width:100%;text-align:left;font-weight:500;font-size:14px;padding:10px 12px;border-style:solid;color:#e8f0fb}
 .fields label.check{display:flex;align-items:center;gap:8px;color:#c9d6e6;cursor:pointer}.fields label.check input{width:auto}
-.segment .segmute{position:absolute;right:6px;top:6px;color:#ffb4a8;opacity:.95}
+.segment .segicons{position:absolute;right:6px;top:6px;display:flex;gap:4px;color:#ffd9a8;opacity:.95}
 
 /* v0.5.2 — faixas de áudio compartilhando linhas e linha de reprodução até a última faixa */
 .timeline-body{position:relative}
 .playline{position:absolute;top:0;bottom:0;width:0;border-left:2px solid #55b8ff;z-index:70;pointer-events:none;box-shadow:0 0 6px #55b8ff80}
 .aname.grab{display:flex;align-items:center;gap:4px}.aname.grab>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .barmute{flex:none;width:14px;height:14px;padding:0;border:0;border-radius:3px;background:transparent;color:#cfe6f5;display:inline-flex;align-items:center;justify-content:center}.barmute:hover{background:#ffffff30}
+
+/* v0.6 — camadas (transição) separadas do vídeo (zoom) e ações do clipe */
+.stage .layer{position:absolute;inset:0;will-change:transform,opacity}
+.fields>.two button,.fields>button{min-height:34px}.fields>button{width:100%}
+
+/* v0.6 — alças de corte nas bordas das faixas de áudio */
+.ahandle{position:absolute;top:0;bottom:0;width:min(8px,30%);z-index:6;cursor:ew-resize;opacity:0;transition:opacity .12s}.abar:hover .ahandle,.abar.sel .ahandle{opacity:1}
+.ahandle.l{left:0;background:linear-gradient(90deg,#ffffffb0,#ffffff00);border-left:2px solid #ffd36b}.ahandle.r{right:0;background:linear-gradient(270deg,#ffffffb0,#ffffff00);border-right:2px solid #ffd36b}
+.audio-panel .two button{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+
+/* v0.6 — textos vinculados */
+.title-segment.linked{border-color:#ffb86b;background:#4a3414;color:#ffe2bd}.title-segment svg{vertical-align:-1px;margin-right:2px}
+.text-edit .hint.link{display:flex;align-items:center;gap:6px;color:#ffcf99;margin:2px 0 6px}.text-edit>button{width:100%;margin:4px 0}
+
+/* v0.7 — enquadramento: fundo desfocado atrás do vídeo; camada de zoom */
+.stage .zoomer{position:absolute;inset:0}
+.stage .layer>.zoomer>video{position:absolute;inset:0;width:100%;height:100%;will-change:transform}
+.bgfill{position:absolute;inset:0;width:100%;height:100%;display:none;transform:scale(1.14);filter:blur(2.03cqw) brightness(.65)}
+.fields>.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fields>.two button{width:100%;white-space:normal;line-height:1.2;padding:8px 6px;min-height:40px}
+
+/* v0.8 — cor e estilos */
+.svgdefs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
+.stage .zoomer{background:#000}   /* as barras pretas fazem parte do quadro (recebem a cor e deslizam nas transições como na exportação) */
+.styles{display:grid;grid-template-columns:1fr 1fr;gap:6px}.chip{padding:7px 6px;font-size:12px;border-radius:8px;background:#162234;border:1px solid #2c4160;color:#cfe0f3;min-height:32px}.chip:hover{background:#20324b}.chip.on{background:#1d4f86;border-color:#4aa8ff;color:#fff}
+
+/* v0.9 — textos: fontes, cores, negrito/itálico e posição livre */
+.titles{position:absolute;inset:0;z-index:5;display:block;padding:0;pointer-events:none}
+.titles .ttl{position:absolute;white-space:pre;line-height:1.15;font-synthesis:none;paint-order:stroke fill;pointer-events:auto;cursor:move;user-select:none;outline:1px dashed transparent;outline-offset:3px}
+.titles .ttl:hover,.titles .ttl.drag{outline-color:#ffffffb0}
+.titles .ttl.live,.preview.full .titles .ttl{pointer-events:none;outline:none}
+.tstyle{margin-top:8px;border-top:1px solid #2e3e54;padding-top:6px}
+.tstyle>summary{cursor:pointer;font-size:12px;font-weight:600;color:#cfe0f3;display:flex;align-items:center;gap:6px;padding:5px 0;list-style:none;user-select:none}
+.tstyle>summary::-webkit-details-marker{display:none}
+.tstyle>summary:after{content:'▸';margin-left:auto;color:#7f94ad}.tstyle[open]>summary:after{content:'▾'}
+.tstyle[open]>summary{margin-bottom:6px}
+.tstyle>:not(summary){margin-bottom:10px}
+.trow{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end}
+.text-edit select{width:100%;background:#0d1523;border:1px solid #344359;color:#fff;padding:8px;border-radius:6px}
+.text-edit input[type=color]{height:34px;padding:2px 3px;cursor:pointer}
+.text-edit input[type=color]:disabled{opacity:.35;cursor:not-allowed}
+.text-edit input[type=range]{padding:0;border:0;background:none;accent-color:#4aa8ff;height:20px}
+.text-edit label.check{display:flex;align-items:center;gap:8px;color:#cfe0f3}
+.text-edit label.check input{width:auto;margin:0}
+.tgroup{display:flex;gap:4px;align-items:end}.tgroup.wide>*{flex:1}
+.tbtn{padding:7px 10px;background:#162234;border-color:#2c4160;color:#cfe0f3}.tbtn.on{background:#1d4f86;border-color:#4aa8ff;color:#fff}.tbtn.txt{font-size:12px}
+.tsub{font-size:11px;font-weight:600;color:#8aa0ba;margin-top:4px}
+.tpresets .chip{font-size:13px}
+.text-edit .hint svg{vertical-align:-2px;margin-right:3px}
+.text-edit>button.danger{width:100%;margin-top:6px}

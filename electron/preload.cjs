@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('editor', {
   openProject: () => ipcRenderer.invoke('open-project'),
   exportVideo: project => ipcRenderer.invoke('export-video', project),
   makeProxy: file => ipcRenderer.invoke('make-proxy', file),
+  makeReversed: (file, start, end, force) => ipcRenderer.invoke('make-reversed', file, start, end, !!force),
   onProgress: callback => {
     const listener = (_event, message) => callback(message);
     ipcRenderer.on('export-progress', listener);
